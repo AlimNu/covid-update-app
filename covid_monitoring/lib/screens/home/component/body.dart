@@ -1,30 +1,45 @@
 import 'dart:convert';
 
 import 'package:covid_monitoring/constant.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:searchable_dropdown/searchable_dropdown.dart';
 
 
-class Body extends StatelessWidget {
-  Future<Countries> fetchCountries() async {
-    final response = await http.get('https://api.covid19api.com/countries');
+class Body extends StatefulWidget {
 
-    if (response.statusCode == 200) {
-      // If the server did return a 200 OK response,
-      // then parse the JSON.
-      return Countries.fromJson(jsonDecode(response.body));
-    } else {
-      // If the server did not return a 200 OK response,
-      // then throw an exception.
-      throw Exception('Failed to load album');
-    }
+  @override
+  _BodyState createState() => _BodyState();
+}
+
+class _BodyState extends State<Body> {
+  String _mySelection;
+  final String url = "https://api.covid19api.com/countries";
+
+  List<Countries> _dataCountry = List();
+  // ignore: missing_return
+  Future<String> _getCountryList() async {
+    await http.get(url, headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    ).then((response) {
+      var data = json.decode(response.body);
+      for(var c in data){
+        Countries country = Countries(c['Country'],c['Slug'],c['Iso2']);
+        _dataCountry.add(country);
+      }
+      print(_dataCountry.length);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    this._getCountryList();
   }
 
   @override
   Widget build(BuildContext context) {
-    String dropDownValue = 'Indonesia';
     Size size = MediaQuery
         .of(context)
         .size;
@@ -59,20 +74,24 @@ class Body extends StatelessWidget {
                 Icon(Icons.location_pin, color: kPrimaryLightColor,),
                 SizedBox(width: 20,),
                 Expanded(
-                    child: DropdownButton<String>(
+                    child: SearchableDropdown.single(
+                      iconSize: 24,
+                      value: _mySelection,
+                      hint: Text('Select Country'),
                       isExpanded: true,
-                      value: dropDownValue,
-                      icon: Icon(Icons.arrow_drop_down),
-                      items: <String>['Indonesia', 'Two', 'Free', 'Four']
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
+                      onChanged: (newValue) {
+                        setState(() {
+                          _mySelection = newValue;
+                        });
+                      },
+                      items: _dataCountry.map((country) {
+                        return DropdownMenuItem(
+                          child: new Text(country.country),
+                          value: country.country,
                         );
                       }).toList(),
                       style: TextStyle(color: kPrimaryLightColor),
                       underline: SizedBox(),
-                      onChanged: (value) {},
                     )),
               ],
             ),
@@ -106,14 +125,6 @@ class Countries {
   final String slug;
   final String iso2;
 
-  Countries({this.country, this.slug, this.iso2});
-
-  factory Countries.fromJson(Map<String, dynamic> json){
-    return Countries(
-        country: json['Country'],
-        slug: json['Slug'],
-        iso2: json['ISO2']);
-  }
-
+  Countries(this.country, this.slug, this.iso2);
 
 }
